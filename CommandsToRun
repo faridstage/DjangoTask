@@ -1,0 +1,14 @@
+Accessing DB inside the container
+docker exec -it mysqdb bash
+mysql -u root -p                 //rootpassword
+SHOW DATABASES;
+
+
+
+Accessing Django webapp inside the container
+docker exec -it django_app bash
+
+
+
+Seeding data inside the container
+python seed.py
