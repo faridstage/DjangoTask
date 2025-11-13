@@ -1,11 +1,21 @@
 from rest_framework import serializers
 
-from orders.models import CustomUser, Product
+from orders.models import CustomUser, Order, Product
 
 from axes.handlers.proxy import AxesProxyHandler
 
 
+class OrderSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'product_name', 'quantity', 'status', 'created_by_name', 'created_at', 'shipped_at']
+
+
 class ProductSerializer(serializers.ModelSerializer):
+    created_by = serializers.CharField(source='created_by.username', read_only=True)
     class Meta:
         model = Product
         fields = ['id', 'name', 'price', 'stock', 'is_active', 'created_by', 'created_at', 'last_updated_at']

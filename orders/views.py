@@ -1,20 +1,37 @@
+from decimal import Decimal
 import logging
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from orders.forms import ProductForm
+from orders.forms import OrderForm, ProductForm
 from orders.models import Order, Product
-from orders.serializers import ProductSerializer 
+from orders.serializers import OrderSerializer, ProductSerializer 
 from rest_framework import status
 import csv
 from django.http import HttpResponse
-from datetime import datetime
-from django.contrib import admin
+from django.utils import timezone
+from datetime import datetime, timedelta
+from rest_framework.authentication import SessionAuthentication
 
 logger = logging.getLogger(__name__)
 
+def ship_order(request, order_id):
+    order = get_object_or_404(Order, id=order_id, company=request.user.company)
+    if order.shipped_at is None:
+        order.shipped_at = timezone.now()
+        order.status = 'success'
+        order.save()
+    return redirect('order_email_sim', order_id=order.id)
+
+def order_email_sim(request, order_id):
+    order = get_object_or_404(Order, id=order_id, company=request.user.company)
+    return render(request, 'orders/order_email_sim.html', {'order': order})
+
+def addOrder(request):
+    form = OrderForm(user= request.user)
+    return render(request,'orders/addOrder.html',{'form':form})
 
 
 def index(request):
@@ -33,14 +50,31 @@ def index(request):
     return render(request,'orders/index.html',{'form':form,'products':products})
 
 class ProductListAPIView(APIView):
+
     permission_classes = [IsAuthenticated]
+    authentication_classes = [SessionAuthentication]
 
     def get(self, request):
         products = Product.objects.filter(company=request.user.company, is_active=True)
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
     
+def order_list_page(request):
+    orders = Order.objects.filter(company=request.user.company)
+    return render(request, 'orders/listOrders.html', {'orders': orders})
+
+
+class OrderListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [SessionAuthentication]
+
+    def get(self, request):
+        orders = Order.objects.filter(company=request.user.company)
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data)
+    
 class OrderAPIView(APIView):
+    authentication_classes = [SessionAuthentication]
     permission_classes= [IsAuthenticated]
 
     def post(self,request):
@@ -102,28 +136,39 @@ class OrderExportToCSVAPIView(APIView):
             writer.writerow([order.id, order.product.name, order.quantity, order.created_by.username, order.status, order.created_at])
         
         return response
-    
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ['name', 'company', 'price', 'stock', 'is_active']
-    actions = ['mark_inactive']
 
-    def mark_inactive(self, request, queryset):
-        queryset.update(is_active=False)
-    mark_inactive.short_description = "Mark selected products as inactive"
 
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ['product', 'quantity', 'company', 'status', 'created_at']
-    
-    actions = ['export_orders_csv']
+class EditProductsByOperatorsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-    def export_orders_csv(self, request, queryset):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="orders.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['ID', 'Product', 'Quantity', 'Created By', 'Status', 'Created At'])
-        for order in queryset:
-            writer.writerow([order.id, order.product.name, order.quantity, order.created_by.username, order.status, order.created_at])
-        return response
-    export_orders_csv.short_description = "Export selected orders as CSV"
+    def put(self,request):
+        if request.user.role == 'viewer':
+            return Response({"error":"Only Operators and admins can edit this"}, status=status.HTTP_403_FORBIDDEN)
+
+        now = datetime.now(timezone.utc)
+        time_limit = now - timedelta(hours=24)
+
+        editable_products = Product.objects.filter(company = request.user.company,created_at__gte=time_limit)
+
+        product_id = request.data.get('product_id')
+        new_name = request.data.get('name')
+        new_price = Decimal(request.data.get('price'))
+        new_stock = request.data.get('stock')
+
+        try:
+            product = editable_products.get(id=product_id)
+        except:
+            return Response({"error","you can only edit products that are created within 1 day"},status=status.HTTP_400_BAD_REQUEST)
+        
+        if new_name:
+            product.name = new_name
+        if new_price:
+            product.price - new_price
+        if new_stock:
+            product.stock = new_stock
+
+        product.save()
+
+        return Response({"message":"Product updated successfully"},status=status.HTTP_200_OK)
+
+

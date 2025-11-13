@@ -1,0 +1,66 @@
+<h2>Place an Order</h2>
+
+<h2>Place Order</h2>
+
+<select id="productSelect"></select>
+<input type="number" id="quantity" min="1" placeholder="Quantity">
+<button id="orderBtn">Order</button>
+
+<a href="{% url 'order_list_page_view' %}">Go To orders</a>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const productSelect = document.getElementById('productSelect');
+        const quantityInput = document.getElementById('quantity');
+        const orderBtn = document.getElementById('orderBtn');
+
+        // Load products to select
+        fetch('/orders/api/products/', { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.text = p.name + ' (Stock: ' + p.stock + ')';
+                    productSelect.appendChild(option);
+                });
+            });
+
+        orderBtn.addEventListener('click', () => {
+            const ordersData = [
+                {
+                    product_id: parseInt(productSelect.value),
+                    quantity: parseInt(quantityInput.value)
+                }
+            ];
+
+            fetch('/orders/api/orders/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ orders: ordersData }),
+                credentials: 'include'
+            })
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Order result:', data);
+                    alert('Order placed!');
+                })
+                .catch(err => console.error(err));
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                document.cookie.split(';').forEach(cookie => {
+                    if (cookie.trim().startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.trim().substring(name.length + 1));
+                    }
+                });
+            }
+            return cookieValue;
+        }
+    });
+</script>

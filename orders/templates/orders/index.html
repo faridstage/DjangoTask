@@ -1,27 +1,113 @@
-<h1>
-    {{ request.user.company }}
-    {{ request.user }}
-</h1>
+<!DOCTYPE html>
+<html lang="en">
 
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Add Product</button>
-</form>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-<table>
-    <tr>
-        <th>Name</th>
-        <th>Price</th>
-        <th>Stock</th>
-        <th>Created By</th>
-    </tr>
-    {% for product in products %}
-    <tr>
-        <td>{{ product.name }}</td>
-        <td>{{ product.price }}</td>
-        <td>{{ product.stock }}</td>
-        <td>{{ product.created_by.username }}</td>
-    </tr>
-    {% endfor %}
-</table>
+
+</head>
+
+<body>
+
+    <nav class="navbar navbar-light bg-light justify-content-center">
+        <span class="navbar-brand mb-0 h1 mx-5" style="font-size: xx-large;">Welcome {{ request.user }} in your
+            company {{ request.user.company }}</span>
+        <a href={% url 'add' %} class="btn btn-outline-success my-2 my-sm-0" type="submit">Order Now</a>
+    </nav>
+
+    {% if request.user.role == 'viewer' %}
+    <div class="container mt-5">
+        <br><br><br><br><br>
+        <table class="table table-dark">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Created By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.price }}</td>
+                    <td>{{ product.stock }}</td>
+                    <td>{{ product.created_by.username }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+    <div class="container mt-5">
+        <div class="card shadow p-4">
+            <h3 class="mb-3">Add Product</h3>
+
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary w-100 mt-3">Add Product</button>
+            </form>
+        </div>
+        <br><br><br><br><br>
+        <table class="table table-dark table-striped" id="productsTable">
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Price</th>
+                    <th scope="col">Stock</th>
+                    <th scope="col">Created By</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+    </div>
+    </div>
+
+
+    {% endif %}
+
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tableBody = document.querySelector('#productsTable tbody');
+
+            // Fetch products from API and display in table
+            function loadProducts() {
+                fetch('/orders/api/products/', {
+                    credentials: 'include'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        tableBody.innerHTML = ''; // Clear existing rows
+                        data.forEach(product => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                        <td>${product.name}</td>
+                        <td>${product.price}</td>
+                        <td>${product.stock}</td>
+                        <td>${product.created_by}</td>
+                    `;
+                            tableBody.appendChild(row);
+                        });
+                    })
+                    .catch(err => console.error('Failed to load products:', err));
+            }
+
+            loadProducts(); // Initial load
+        });
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

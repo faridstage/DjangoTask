@@ -1,0 +1,83 @@
+<h2>Company Orders</h2>
+
+<table class="table table-striped" id="ordersTable">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Status</th>
+            <th>Created By</th>
+            <th>Created At</th>
+            <th>Shipped At</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tableBody = document.querySelector('#ordersTable tbody');
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function loadOrders() {
+            fetch('/orders/api/orders/list/', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    tableBody.innerHTML = '';
+                    data.forEach(order => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                        <td>${order.product_name}</td>
+                        <td>${order.quantity}</td>
+                        <td>${order.status}</td>
+                        <td>${order.created_by_name}</td>
+                        <td>${new Date(order.created_at).toLocaleString()}</td>
+                        <td>${order.shipped_at ? new Date(order.shipped_at).toLocaleString() : '-'}</td>
+                        <td>
+                            ${!order.shipped_at
+                                ? `<button class="btn btn-success btn-sm" onclick="shipOrder(${order.id})">Ship Order</button>`
+                                : `<a href="/orders/email/${order.id}/" class="btn btn-info btn-sm">View Email</a>`}
+                        </td>
+                    `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(err => console.error('Failed to load orders:', err));
+        }
+
+        window.shipOrder = function (orderId) {
+            fetch(`/orders/ship/${orderId}/`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            }).then(res => {
+                if (res.ok) {
+                    window.location.href = `/orders/email/${orderId}/`;
+                } else {
+                    alert('Failed to ship order');
+                }
+            });
+        }
+
+        loadOrders();
+    });
+
+</script>
