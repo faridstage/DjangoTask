@@ -172,7 +172,6 @@ products = [
     Product(company=company3,name="Soda2",price=150.00,stock=30,created_by=admin_user3),
     Product(company=company3,name="Soda3",price=200.00,stock=10,created_by=admin_user3),
 ]
-Product.objects.all().delete()
 Product.objects.bulk_create(products)
 
 #for testing

@@ -51,9 +51,9 @@ def index(request):
     return render(request,'orders/index.html',{'form':form,'products':products})
 
 class ProductListAPIView(APIView):
-
+    
     permission_classes = [IsAuthenticated]
-
+    authentication_classes = [SessionAuthentication]
 
     def get(self, request):
         products = Product.objects.filter(company=request.user.company, is_active=True)

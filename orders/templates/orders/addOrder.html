@@ -43,12 +43,23 @@
                 body: JSON.stringify({ orders: ordersData }),
                 credentials: 'include'
             })
-                .then(res => res.json())
-                .then(data => {
-                    console.log('Order result:', data);
-                    alert('Order placed!');
+                .then(async res => {
+                    const data = await res.json();
+
+                    if (!res.ok) {
+
+                        alert("Error: " + data.error);
+                        return;
+                    }
+
+
+                    alert('Order placed successfully!');
+                    console.log("Order result:", data);
                 })
-                .catch(err => console.error(err));
+                .catch(err => {
+                    console.error(err);
+                    alert("Something went wrong!");
+                });
         });
 
         function getCookie(name) {
