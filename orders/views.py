@@ -28,7 +28,8 @@ def ship_order(request, order_id):
 
 def order_email_sim(request, order_id):
     order = get_object_or_404(Order, id=order_id, company=request.user.company)
-    return render(request, 'orders/order_email_sim.html', {'order': order})
+    orders = Order.objects.filter(company=request.user.company).all()
+    return render(request, 'orders/order_email_sim.html', {'order': order,'orders':orders})
 
 def addOrder(request):
     form = OrderForm(user= request.user)

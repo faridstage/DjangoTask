@@ -16,6 +16,14 @@
             <p><strong>Ordered By:</strong> {{ order.created_by.username }}</p>
             <p><strong>Status:</strong> {{ order.status }}</p>
             <p><strong>Shipped At:</strong> {{ order.shipped_at }}</p>
+            <p><strong>Your Total orders</strong>
+                {% for orderP in orders %}
+                {{orderP.product.name}}
+                {% endfor %}
+            </p>
+
+
+
             <a href="{% url 'order_list_page_view' %}" class="btn btn-primary mt-3">Back to Orders</a>
         </div>
     </div>
