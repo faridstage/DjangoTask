@@ -11,4 +11,4 @@ docker exec -it django_app bash
 
 
 Seeding data inside the container
-python seed.py
+docker-compose exec web python seed.py

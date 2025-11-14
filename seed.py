@@ -1,3 +1,5 @@
+from django.utils import timezone
+from datetime import timedelta
 import os
 import django
 
@@ -12,6 +14,20 @@ company3, _ = Company.objects.get_or_create(name="Drinkuo")
 
 #__USERS__
 #__USERS FOR COMPANY 1
+
+admin_user, _ = CustomUser.objects.get_or_create(
+    username="farid",
+    defaults={
+        "email":"faridfaiz71@gmail.com",
+        "role":"admin",
+        "company":company1,
+        "is_staff":True,
+        "is_superuser":True,
+    },
+)
+admin_user.set_password("Farid@1234")
+admin_user.save()
+
 admin_user, _ = CustomUser.objects.get_or_create(
     username="admin",
     defaults={
@@ -156,7 +172,13 @@ products = [
     Product(company=company3,name="Soda2",price=150.00,stock=30,created_by=admin_user3),
     Product(company=company3,name="Soda3",price=200.00,stock=10,created_by=admin_user3),
 ]
+Product.objects.all().delete()
 Product.objects.bulk_create(products)
+
+#for testing
+updated_product = Product.objects.get(name="Laptop1")
+updated_product.created_at = timezone.now() - timedelta(days=2)
+updated_product.save(update_fields=["created_at"])
 
 
 

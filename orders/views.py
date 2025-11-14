@@ -1,5 +1,6 @@
 from decimal import Decimal
 import logging
+from django.forms import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from rest_framework.response import Response
@@ -52,7 +53,7 @@ def index(request):
 class ProductListAPIView(APIView):
 
     permission_classes = [IsAuthenticated]
-    authentication_classes = [SessionAuthentication]
+
 
     def get(self, request):
         products = Product.objects.filter(company=request.user.company, is_active=True)
@@ -75,53 +76,27 @@ class OrderListAPIView(APIView):
     
 class OrderAPIView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes= [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    def post(self,request):
-        if request.user.role == 'viewer':
-            return Response({"error":"Viewer Can't order!!"},status=status.HTTP_403_FORBIDDEN)
-        
-        orders_data = request.data.get('orders',[])
-        created_orders = []
-        for data in orders_data:
-            try:
-                product = Product.objects.get(id=data['product_id'], company=request.user.company)
-            except Product.DoesNotExist:
-                return Response(
-                    {"error": f"Product with id {data['product_id']} does not exist or is unavailable"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if not product.is_active:
-                return Response(
-                    {"error": f"This product '{product.name}' is currently unavailable"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            quantity = data['quantity']
-            if quantity > product.stock:
-                return Response({"error":"there is no enough of this product"},status=status.HTTP_400_BAD_REQUEST)
-            product.stock -= quantity
-            product.save()
+    def post(self, request):
+        from orders.services import create_orders
+        try:
+            created_ids = create_orders(request.user, request.data.get("orders", []))
+            return Response({"created_orders": created_ids})
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=400)
 
-            order = Order.objects.create(
-                company = request.user.company,
-                product=product,
-                quantity = quantity,
-                created_by = request.user,
-                status = 'pending'
-            )
-            created_orders.append(order.id)
-        
-        return Response({"created_orders":created_orders})
     
 class ProductSoftDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self,request):
-        ids = request.data.get('product_ids',[])
-        products = Product.objects.filter(id__in=ids,company=request.user.company)
-        products.update(is_active=False)
-        return Response({"deleted_ids":ids})
-    
+    def delete(self, request):
+        from orders.services import soft_delete_products
+        ids = request.data.get("product_ids", [])
+        deleted = soft_delete_products(request.user, ids)
+        return Response({"deleted_ids": deleted})
+
+
 class OrderExportToCSVAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -141,34 +116,16 @@ class OrderExportToCSVAPIView(APIView):
 class EditProductsByOperatorsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self,request):
-        if request.user.role == 'viewer':
-            return Response({"error":"Only Operators and admins can edit this"}, status=status.HTTP_403_FORBIDDEN)
-
-        now = datetime.now(timezone.utc)
-        time_limit = now - timedelta(hours=24)
-
-        editable_products = Product.objects.filter(company = request.user.company,created_at__gte=time_limit)
-
-        product_id = request.data.get('product_id')
-        new_name = request.data.get('name')
-        new_price = Decimal(request.data.get('price'))
-        new_stock = request.data.get('stock')
-
+    def put(self, request):
+        from orders.services import edit_product
         try:
-            product = editable_products.get(id=product_id)
-        except:
-            return Response({"error","you can only edit products that are created within 1 day"},status=status.HTTP_400_BAD_REQUEST)
-        
-        if new_name:
-            product.name = new_name
-        if new_price:
-            product.price - new_price
-        if new_stock:
-            product.stock = new_stock
-
-        product.save()
-
-        return Response({"message":"Product updated successfully"},status=status.HTTP_200_OK)
-
-
+            product = edit_product(
+                request.user,
+                request.data.get("product_id"),
+                request.data.get("name"),
+                request.data.get("price"),
+                request.data.get("stock"),
+            )
+            return Response({"message": "Product updated successfully"})
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=400)
