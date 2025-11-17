@@ -14,7 +14,7 @@ OPEN DOCKER DESKTOP ON YOUR MACHINE
 
 OPEN TERMINAL IN VSCODE AND RUN
 
-> docker-compose build db
+> docker-compose build
 
 > docker-compose up db // this will run only db container first
 
